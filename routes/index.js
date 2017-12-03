@@ -1,29 +1,20 @@
 var routes = require('express').Router();
-var dataForge = require('data-forge');
+var MongoClient = require('mongodb').MongoClient;
 
+var url = "mongodb://localhost:27017/stackoverflowsurveydatabase";
 
-var dataFrame = dataForge.readFileSync('assets/survey_results_public.csv').parseCSV();
-
-var columnSubset = dataFrame.subset(["Country", "Salary"]);
-console.log(columnSubset.skip(10).take(20).toString()); 
-
-
-var myAgg = function(prevValue, nextValue) {
-	return 5.;
-}
 
 routes.get('/', function(req, res) {
-	var summarized = columnSubset
-		.groupBy(row => row.Country)
-		.select(group => ({
-			Country: group.first().Country,
-
-			// Sum sales per client.
-			Sum: group.select(row => row.Salary).aggregate(0, (prevValue, nextValue) => myAgg(prevValue, nextValue)),
-		}))
-		.inflate() // Series -> dataframe.
-		.toArray(); // Convert to regular JS array.
-  res.status(200).json(summarized);
+	var result = {};
+	MongoClient.connect(url, function(err, db) {
+	  if (err) throw err;
+	  var query = { Country: "Belgium" };
+	  db.collection("stackoverflowsurvey").find(query).toArray(function(err, result) {
+	    if (err) throw err;
+	    db.close();
+	    res.status(200).json(result);
+	  });
+	});
 });
 
 module.exports = routes;
